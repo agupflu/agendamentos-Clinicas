@@ -71,6 +71,8 @@ export interface CsProfissional {
   especialidade: string;
   bio: string | null;
   foto_url: string | null;
+  email: string | null;
+  senha: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

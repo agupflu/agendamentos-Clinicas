@@ -7,9 +7,33 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Público — sem auth
+  // Rotas públicas
   if (pathname.startsWith("/agendar")) return NextResponse.next();
 
+  // ── Área do profissional ──────────────────────────────────────────
+  const isProfLogin = pathname === "/profissional/login";
+  const profCookie = request.cookies.get("cs-prof-session")?.value;
+  const profAuthed = Boolean(profCookie?.startsWith("prof:"));
+
+  if (pathname === "/minha-agenda") {
+    if (!profAuthed) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/profissional/login";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  if (isProfLogin) {
+    if (profAuthed) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/minha-agenda";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  // ── Área do admin ─────────────────────────────────────────────────
   const isLogin = pathname === "/login";
   const secret = (process.env.SESSION_SECRET || "").trim();
   const cookie = request.cookies.get("cs-session")?.value;
