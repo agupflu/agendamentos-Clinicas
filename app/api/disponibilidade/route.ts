@@ -13,9 +13,10 @@ export async function GET(req: Request) {
   const supabase = createAdminClient();
   const diaSemana = new Date(data + "T12:00:00").getDay();
 
-  const configRes = await supabase.from("cs_config").select("duracao_consulta, intervalo_entre").limit(1).single();
-  const duracao = configRes.data?.duracao_consulta ?? 30;
-  const intervalo = configRes.data?.intervalo_entre ?? 0;
+  const { data: conf, error: confError } = await supabase.from("cs_config").select("duracao_consulta, intervalo_entre").limit(1).single();
+  if (confError || !conf) return NextResponse.json({ error: "Configuração da clínica não encontrada." }, { status: 500 });
+  const duracao = conf.duracao_consulta;
+  const intervalo = conf.intervalo_entre ?? 0;
 
   let todos: string[] = [];
 

@@ -74,8 +74,9 @@ export async function POST(req: Request) {
     pacienteId = novo.id;
   }
 
-  const { data: conf } = await supabase.from("cs_config").select("duracao_consulta").limit(1).single();
-  const duracao = conf?.duracao_consulta ?? 30;
+  const { data: conf, error: confError } = await supabase.from("cs_config").select("duracao_consulta").limit(1).single();
+  if (confError || !conf) return NextResponse.json({ error: "Configuração da clínica não encontrada. Acesse as configurações e salve antes de agendar." }, { status: 500 });
+  const duracao = conf.duracao_consulta;
 
   let conflictoQuery = supabase
     .from("cs_agendamentos")
