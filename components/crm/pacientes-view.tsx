@@ -1,39 +1,57 @@
 "use client";
 
-import { useState } from "react";
-import { User, Phone, Mail, Calendar, Plus, RefreshCw } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { User, Phone, Mail, Plus, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import type { CsPaciente } from "@/types";
 import { formatarData, STATUS_LABELS, STATUS_COLORS } from "@/lib/calendario";
 
 const ACCENT = "#00CFFF";
 const BORDER = "rgba(255,255,255,0.08)";
 
-export default function PacientesView({ initialData }: { initialData: CsPaciente[] }) {
+export default function PacientesView({ initialData, initialTotal }: { initialData: CsPaciente[]; initialTotal: number }) {
   const [pacientes, setPacientes] = useState(initialData);
+  const [total, setTotal] = useState(initialTotal);
   const [busca, setBusca] = useState("");
+  const [page, setPage] = useState(0);
   const [selecionado, setSelecionado] = useState<CsPaciente | null>(null);
   const [novaNota, setNovaNota] = useState("");
   const [salvandoNota, setSalvandoNota] = useState(false);
-  const [loadingRefresh, setLoadingRefresh] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function refresh() {
-    setLoadingRefresh(true);
+  async function fetchPacientes(q: string, p: number) {
+    setLoading(true);
     try {
-      const r = await fetch("/api/pacientes");
+      const params = new URLSearchParams({ page: String(p) });
+      if (q) params.set("busca", q);
+      const r = await fetch(`/api/pacientes?${params}`);
       if (r.ok) {
         const data = await r.json();
-        setPacientes(data);
+        setPacientes(data.pacientes ?? []);
+        setTotal(data.total ?? 0);
         if (selecionado) {
-          const updated = data.find((p: CsPaciente) => p.id === selecionado.id);
+          const updated = (data.pacientes ?? []).find((x: CsPaciente) => x.id === selecionado.id);
           setSelecionado(updated ?? null);
         }
       }
-    } finally { setLoadingRefresh(false); }
+    } finally { setLoading(false); }
   }
 
-  const filtrados = pacientes.filter((p) =>
-    !busca || p.nome.toLowerCase().includes(busca.toLowerCase()) || p.telefone.includes(busca)
-  );
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(0);
+      fetchPacientes(busca, 0);
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [busca]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetchPacientes(busca, page);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totalPages = Math.ceil(total / 20);
+  const filtrados = pacientes;
 
   async function adicionarNota(pacienteId: string) {
     if (!novaNota.trim()) return;
@@ -66,12 +84,13 @@ export default function PacientesView({ initialData }: { initialData: CsPaciente
         <div style={{ display: "flex", gap: "8px" }}>
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou telefone..."
             style={{ flex: 1, padding: "10px 14px", background: "#111", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", outline: "none" }} />
-          <button onClick={refresh} disabled={loadingRefresh} title="Atualizar lista"
+          <button onClick={() => fetchPacientes(busca, page)} disabled={loading} title="Atualizar lista"
             style={{ padding: "10px 12px", background: "transparent", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#9A9288", cursor: "pointer", display: "flex", alignItems: "center" }}>
-            <RefreshCw size={14} style={{ animation: loadingRefresh ? "spin 1s linear infinite" : "none" }} />
+            <RefreshCw size={14} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
           </button>
         </div>
-        <p style={{ fontSize: "11px", color: "#777068" }}>{filtrados.length} paciente{filtrados.length !== 1 ? "s" : ""}</p>
+        <p style={{ fontSize: "11px", color: "#777068" }}>{total} paciente{total !== 1 ? "s" : ""}</p>
+        {loading && <p style={{ fontSize: "12px", color: "#777068", textAlign: "center", padding: "12px 0" }}>Carregando...</p>}
         {filtrados.map((p) => (
           <button key={p.id} onClick={() => setSelecionado(p)}
             style={{ padding: "14px", background: selecionado?.id === p.id ? "rgba(0,207,255,0.07)" : "#111", border: `1px solid ${selecionado?.id === p.id ? "rgba(0,207,255,0.3)" : BORDER}`, borderRadius: "10px", textAlign: "left", cursor: "pointer", width: "100%" }}>
@@ -87,6 +106,19 @@ export default function PacientesView({ initialData }: { initialData: CsPaciente
             </div>
           </button>
         ))}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${BORDER}`, marginTop: "4px" }}>
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+              style={{ padding: "6px 10px", background: "transparent", border: `1px solid ${BORDER}`, borderRadius: "6px", color: page === 0 ? "#333" : "#9A9288", cursor: page === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center" }}>
+              <ChevronLeft size={14} />
+            </button>
+            <span style={{ fontSize: "12px", color: "#777068" }}>{page + 1} / {totalPages}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+              style={{ padding: "6px 10px", background: "transparent", border: `1px solid ${BORDER}`, borderRadius: "6px", color: page >= totalPages - 1 ? "#333" : "#9A9288", cursor: page >= totalPages - 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center" }}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Detalhe */}
