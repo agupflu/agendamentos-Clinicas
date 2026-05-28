@@ -183,7 +183,7 @@ export default function ProfissionaisView() {
     const detail: Profissional & { procedimento_ids: string[]; disponibilidade: ProfDisp[] } = await r.json();
     setEditId(id);
     setPfNome(detail.nome);
-    setPfEmail((detail as Record<string, unknown>).email as string ?? "");
+    setPfEmail(String((detail as Record<string, unknown>).email ?? ""));
     setPfSenha("");
     setPfTags(parseTags(detail.especialidade));
     setPfFoto(detail.foto_url ?? null);
