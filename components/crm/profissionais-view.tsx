@@ -142,12 +142,15 @@ export default function ProfissionaisView() {
 
   // Prof form state
   const [pfNome, setPfNome] = useState("");
+  const [pfEmail, setPfEmail] = useState("");
+  const [pfSenha, setPfSenha] = useState("");
   const [pfTags, setPfTags] = useState<string[]>([]);
   const [pfTagInput, setPfTagInput] = useState("");
   const [pfFoto, setPfFoto] = useState<string | null>(null);
   const [pfAtivo, setPfAtivo] = useState(true);
   const [pfProcIds, setPfProcIds] = useState<string[]>([]);
   const [pfDisp, setPfDisp] = useState<DiaForm[]>(defaultDias());
+  const [showSenha, setShowSenha] = useState(false);
   const fotoRef = useRef<HTMLInputElement>(null);
 
   // Proc form state
@@ -170,8 +173,8 @@ export default function ProfissionaisView() {
   }
 
   function resetProfForm() {
-    setPfNome(""); setPfTags([]); setPfTagInput(""); setPfFoto(null);
-    setPfAtivo(true); setPfProcIds([]); setPfDisp(defaultDias());
+    setPfNome(""); setPfEmail(""); setPfSenha(""); setPfTags([]); setPfTagInput(""); setPfFoto(null);
+    setPfAtivo(true); setPfProcIds([]); setPfDisp(defaultDias()); setShowSenha(false);
   }
 
   async function openEditProf(id: string) {
@@ -180,11 +183,14 @@ export default function ProfissionaisView() {
     const detail: Profissional & { procedimento_ids: string[]; disponibilidade: ProfDisp[] } = await r.json();
     setEditId(id);
     setPfNome(detail.nome);
+    setPfEmail((detail as Record<string, unknown>).email as string ?? "");
+    setPfSenha("");
     setPfTags(parseTags(detail.especialidade));
     setPfFoto(detail.foto_url ?? null);
     setPfAtivo(detail.ativo);
     setPfProcIds(detail.procedimento_ids ?? []);
     setPfDisp(groupDispByDay(detail.disponibilidade ?? []));
+    setShowSenha(false);
     setModal("prof");
   }
 
@@ -276,14 +282,16 @@ export default function ProfissionaisView() {
   async function saveProf() {
     if (!pfNome.trim()) return;
     setSaving(true);
-    const body = {
+    const body: Record<string, unknown> = {
       nome: pfNome.trim(),
       especialidade: pfTags.join(", "),
       foto_url: pfFoto ?? null,
       ativo: pfAtivo,
+      email: pfEmail.trim() || null,
       procedimento_ids: pfProcIds,
       disponibilidade: flattenDisp(),
     };
+    if (pfSenha.trim()) body.senha = pfSenha.trim();
     const url = editId ? `/api/profissionais/${editId}` : "/api/profissionais";
     await fetch(url, { method: editId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setModal(null);
@@ -590,6 +598,39 @@ export default function ProfissionaisView() {
                 <label style={{ fontSize: "12px", color: "#777068", display: "block", marginBottom: "5px" }}>Nome *</label>
                 <input value={pfNome} onChange={(e) => setPfNome(e.target.value)} placeholder="Dr. João Silva"
                   style={{ width: "100%", padding: "10px 12px", background: "#0d0d0d", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", outline: "none", boxSizing: "border-box" }} />
+              </div>
+
+              {/* Acesso ao dashboard */}
+              <div style={{ background: "rgba(0,207,255,0.03)", border: `1px solid rgba(0,207,255,0.12)`, borderRadius: "10px", padding: "14px" }}>
+                <p style={{ fontSize: "12px", fontWeight: "600", color: ACCENT, marginBottom: "12px" }}>Acesso ao dashboard do profissional</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#777068", display: "block", marginBottom: "5px" }}>E-mail de acesso</label>
+                    <input type="email" value={pfEmail} onChange={(e) => setPfEmail(e.target.value)} placeholder="dr@clinica.com"
+                      style={{ width: "100%", padding: "10px 12px", background: "#0d0d0d", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#777068", display: "block", marginBottom: "5px" }}>
+                      {editId ? "Nova senha (deixe em branco para manter)" : "Senha"}
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type={showSenha ? "text" : "password"}
+                        value={pfSenha}
+                        onChange={(e) => setPfSenha(e.target.value)}
+                        placeholder={editId ? "••••••••" : "Mínimo 6 caracteres"}
+                        style={{ width: "100%", padding: "10px 40px 10px 12px", background: "#0d0d0d", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                      />
+                      <button type="button" onClick={() => setShowSenha(!showSenha)}
+                        style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "#555", cursor: "pointer", fontSize: "11px" }}>
+                        {showSenha ? "ocultar" : "ver"}
+                      </button>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: "11px", color: "#555" }}>
+                    O profissional acessa em <span style={{ color: ACCENT }}>/profissional/login</span> com esse e-mail e senha.
+                  </p>
+                </div>
               </div>
 
               {/* Especialidades - tag input */}
