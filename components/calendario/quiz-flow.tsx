@@ -18,9 +18,10 @@ const TURNOS = [
 interface Procedimento { id: string; nome: string; descricao: string | null; categoria: string; }
 interface ProfDisp { dia_semana: number; hora_inicio: string; hora_fim: string; ativo: boolean; }
 interface Profissional { id: string; nome: string; especialidade: string; bio: string | null; foto_url: string | null; disponibilidade: ProfDisp[]; }
+interface QuizPergunta { id: string; pergunta: string; tipo: string; opcoes: string[] | null; obrigatoria: boolean; ordem: number; }
 
-type Step = "tipo" | "procedimento" | "profissional" | "data" | "turno" | "hora" | "dados" | "revisar";
-const STEPS: Step[] = ["tipo", "procedimento", "profissional", "data", "turno", "hora", "dados", "revisar"];
+type Step = "tipo" | "procedimento" | "profissional" | "data" | "turno" | "hora" | "dados" | "quiz" | "revisar";
+const STEPS: Step[] = ["tipo", "procedimento", "profissional", "data", "turno", "hora", "dados", "quiz", "revisar"];
 
 export default function QuizFlow({ config }: { config: CsConfig | null }) {
   const router = useRouter();
@@ -35,6 +36,8 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
   const [horarios, setHorarios] = useState<string[]>([]);
   const [horaSel, setHoraSel] = useState("");
   const [dados, setDados] = useState({ nome: "", telefone: "", email: "" });
+  const [quizPerguntas, setQuizPerguntas] = useState<QuizPergunta[]>([]);
+  const [quizRespostas, setQuizRespostas] = useState<Record<string, string>>({});
   const [loadingProc, setLoadingProc] = useState(false);
   const [loadingProf, setLoadingProf] = useState(false);
   const [loadingH, setLoadingH] = useState(false);
@@ -51,6 +54,10 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
       .then((d) => setProcedimentos(Array.isArray(d) ? d : []))
       .catch(() => {})
       .finally(() => setLoadingProc(false));
+    fetch("/api/quiz")
+      .then((r) => r.json())
+      .then((d) => setQuizPerguntas(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -151,7 +158,7 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
           tipo_agendamento: tipo || undefined,
           procedimento_id: procedimentoSel?.id,
           procedimento: procedimentoSel?.nome,
-          quiz_respostas: {},
+          quiz_respostas: quizRespostas,
         }),
       });
       if (r.status === 409) {
@@ -458,7 +465,69 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <BtnSec onClick={back}><ChevronLeft size={15} /> Voltar</BtnSec>
-              <Btn disabled={!dados.nome || !dados.telefone} onClick={() => go("revisar")}>Revisar <ChevronRight size={15} /></Btn>
+              <Btn disabled={!dados.nome || !dados.telefone} onClick={() => go(quizPerguntas.length > 0 ? "quiz" : "revisar")}>
+                {quizPerguntas.length > 0 ? "Próximo" : "Revisar"} <ChevronRight size={15} />
+              </Btn>
+            </div>
+          </div>
+        )}
+
+        {/* QUIZ */}
+        {step === "quiz" && (
+          <div>
+            <h2 style={{ fontSize: "19px", fontWeight: "600", color: "#fff", marginBottom: "6px" }}>Mais algumas perguntas</h2>
+            <p style={{ fontSize: "13px", color: "#9A9288", marginBottom: "24px" }}>Isso nos ajuda a preparar melhor o seu atendimento.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginBottom: "24px" }}>
+              {quizPerguntas.map((p) => (
+                <div key={p.id}>
+                  <p style={{ fontSize: "13px", color: "#ccc", marginBottom: "10px", fontWeight: "500" }}>
+                    {p.pergunta}
+                    {p.obrigatoria && <span style={{ color: "#EF4444", marginLeft: "4px" }}>*</span>}
+                  </p>
+                  {p.tipo === "single_choice" && p.opcoes && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {p.opcoes.map((op) => {
+                        const sel = quizRespostas[p.pergunta] === op;
+                        return (
+                          <button key={op} onClick={() => setQuizRespostas({ ...quizRespostas, [p.pergunta]: op })}
+                            style={{ padding: "10px 14px", background: sel ? "rgba(0,207,255,0.1)" : "#111", border: `1px solid ${sel ? "rgba(0,207,255,0.4)" : BORDER}`, borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "13px", color: sel ? ACCENT : "#ccc" }}>
+                            {op}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {p.tipo === "boolean" && (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      {["Sim", "Não"].map((op) => {
+                        const sel = quizRespostas[p.pergunta] === op;
+                        return (
+                          <button key={op} onClick={() => setQuizRespostas({ ...quizRespostas, [p.pergunta]: op })}
+                            style={{ flex: 1, padding: "10px", background: sel ? "rgba(0,207,255,0.1)" : "#111", border: `1px solid ${sel ? "rgba(0,207,255,0.4)" : BORDER}`, borderRadius: "8px", cursor: "pointer", fontSize: "13px", color: sel ? ACCENT : "#ccc", fontWeight: sel ? "600" : "400" }}>
+                            {op}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {p.tipo === "text" && (
+                    <textarea
+                      value={quizRespostas[p.pergunta] ?? ""}
+                      onChange={(e) => setQuizRespostas({ ...quizRespostas, [p.pergunta]: e.target.value })}
+                      rows={3} placeholder="Digite sua resposta..."
+                      style={{ width: "100%", padding: "12px 14px", background: "#111", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", resize: "none", outline: "none", boxSizing: "border-box" }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <BtnSec onClick={back}><ChevronLeft size={15} /> Voltar</BtnSec>
+              <Btn
+                disabled={quizPerguntas.filter((p) => p.obrigatoria).some((p) => !quizRespostas[p.pergunta])}
+                onClick={() => go("revisar")}>
+                Revisar <ChevronRight size={15} />
+              </Btn>
             </div>
           </div>
         )}
