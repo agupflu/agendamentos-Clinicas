@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase";
 import { dispararWebhook } from "@/lib/webhook";
+import { validate, validationError } from "@/lib/validate";
+
+const STATUS_VALIDOS = ["pendente", "confirmado", "cancelado", "concluido", "no_show"];
 
 export const dynamic = "force-dynamic";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const supabase = createAdminClient();
   const body = await req.json();
+
+  if (body.status !== undefined) {
+    const erros = validate(body, { status: [{ type: "enum", values: STATUS_VALIDOS }] });
+    if (erros.length) return validationError(erros);
+  }
   const { data, error } = await supabase
     .from("cs_agendamentos")
     .update({ ...body, updated_at: new Date().toISOString() })

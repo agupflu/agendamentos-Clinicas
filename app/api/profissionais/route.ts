@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase";
+import { validate, validationError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const supabase = createAdminClient();
   const body = await req.json();
+
+  const erros = validate(body, {
+    nome:         [{ type: "required" }, { type: "string", min: 2, max: 120 }],
+    especialidade:[{ type: "required" }, { type: "string", min: 2, max: 100 }],
+    email:        [{ type: "email" }],
+  });
+  if (erros.length) return validationError(erros);
+
   const { procedimento_ids, disponibilidade, ...rest } = body;
 
   const { data, error } = await supabase.from("cs_profissionais").insert(rest).select().single();

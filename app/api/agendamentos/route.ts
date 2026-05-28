@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase";
 import type { NovoAgendamentoInput } from "@/types";
 import { somarMinutos } from "@/lib/calendario";
 import { dispararWebhook } from "@/lib/webhook";
+import { validate, validationError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,26 @@ export async function GET() {
 export async function POST(req: Request) {
   const supabase = createAdminClient();
   const body: NovoAgendamentoInput = await req.json();
+
+  const erros = validate(body, {
+    data:  [{ type: "required" }, { type: "date" }],
+    hora:  [{ type: "required" }, { type: "time" }],
+    "paciente.nome":     [],
+    "paciente.telefone": [],
+  });
+
+  // Validar paciente manualmente (objeto aninhado)
+  if (!body.paciente || typeof body.paciente !== "object") {
+    erros.push("paciente é obrigatório.");
+  } else {
+    if (!body.paciente.nome?.trim()) erros.push("paciente.nome é obrigatório.");
+    if (!body.paciente.telefone?.trim()) erros.push("paciente.telefone é obrigatório.");
+    if (body.paciente.nome && body.paciente.nome.trim().length < 2) erros.push("paciente.nome deve ter ao menos 2 caracteres.");
+    if (body.paciente.telefone && body.paciente.telefone.replace(/\D/g, "").length < 8) erros.push("paciente.telefone inválido.");
+  }
+
+  const errosFiltrados = erros.filter((e) => !e.startsWith("paciente.nome") && !e.startsWith("paciente.telefone"));
+  if (errosFiltrados.length) return validationError(errosFiltrados);
 
   let pacienteId: string;
   const { data: existente } = await supabase

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase";
+import { validate, validationError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -56,4 +57,24 @@ export async function GET(req: Request) {
     })),
     total: count ?? 0,
   });
+}
+
+export async function POST(req: Request) {
+  const supabase = createAdminClient();
+  const body = await req.json();
+
+  const erros = validate(body, {
+    nome:     [{ type: "required" }, { type: "string", min: 2, max: 120 }],
+    telefone: [{ type: "required" }, { type: "string", min: 8, max: 20 }],
+    email:    [{ type: "email" }],
+  });
+  if (erros.length) return validationError(erros);
+
+  const { data, error } = await supabase
+    .from("cs_pacientes")
+    .insert({ nome: body.nome.trim(), telefone: body.telefone.trim(), email: body.email?.trim() || null, observacoes: body.observacoes || null })
+    .select()
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data, { status: 201 });
 }
