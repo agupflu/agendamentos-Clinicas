@@ -17,7 +17,7 @@ function Content() {
   const clinica = p.get("clinica") ?? "Clínica";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
       <div style={{ maxWidth: "440px", width: "100%", textAlign: "center" }}>
         <div style={{ width: "68px", height: "68px", background: "rgba(0,207,255,0.08)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
           <CheckCircle size={32} color={ACCENT} />

@@ -28,7 +28,8 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
   const [step, setStep] = useState<Step>("tipo");
   const [tipo, setTipo] = useState<"avaliacao" | "retorno" | "">("");
   const [procedimentos, setProcedimentos] = useState<Procedimento[]>([]);
-  const [procedimentoSel, setProcedimentoSel] = useState<Procedimento | null>(null);
+  const [procedimentosSel, setProcedimentosSel] = useState<Procedimento[]>([]);
+  const [outroTexto, setOutroTexto] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [profissionalSel, setProfissionalSel] = useState<Profissional | null>(null);
   const [dataSel, setDataSel] = useState("");
@@ -61,16 +62,16 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
   }, []);
 
   useEffect(() => {
-    if (!procedimentoSel) return;
+    if (!procedimentosSel.length) return;
     setLoadingProf(true);
     setProfissionais([]);
     setProfissionalSel(null);
-    fetch(`/api/profissionais?procedimento_id=${procedimentoSel.id}`)
+    fetch(`/api/profissionais?procedimento_id=${procedimentosSel[0].id}`)
       .then((r) => r.json())
       .then((d) => setProfissionais(Array.isArray(d) ? d : []))
       .catch(() => {})
       .finally(() => setLoadingProf(false));
-  }, [procedimentoSel]);
+  }, [procedimentosSel]);
 
   useEffect(() => {
     if (!dataSel || !profissionalSel) return;
@@ -124,11 +125,9 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
     : horarios;
 
   const procFiltrados = procedimentos.filter((p) =>
-    tipo === "avaliacao"
-      ? ["avaliacao", "ambos"].includes(p.categoria)
-      : tipo === "retorno"
-      ? ["retorno", "ambos"].includes(p.categoria)
-      : true
+    tipo === "avaliacao" ? ["avaliacao", "ambos"].includes(p.categoria)
+    : tipo === "retorno" ? ["retorno", "ambos"].includes(p.categoria)
+    : true
   );
 
   const currIdx = STEPS.indexOf(step);
@@ -139,8 +138,12 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
     setStep(s);
   }
   function back() {
-    const p = currIdx - 1;
-    if (p >= 0) setStep(STEPS[p]);
+    let p = currIdx - 1;
+    if (p >= 0) {
+      // Pula o step quiz se não há perguntas
+      if (STEPS[p] === "quiz" && quizPerguntas.length === 0) p--;
+      if (p >= 0) setStep(STEPS[p]);
+    }
   }
 
   async function submit() {
@@ -156,8 +159,8 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
           hora: horaSel,
           profissional_id: profissionalSel?.id,
           tipo_agendamento: tipo || undefined,
-          procedimento_id: procedimentoSel?.id,
-          procedimento: procedimentoSel?.nome,
+          procedimento_id: procedimentosSel[0]?.id,
+          procedimento: [...procedimentosSel.map(p => p.nome), ...(outroTexto.trim() ? [outroTexto.trim()] : [])].join(", "),
           quiz_respostas: quizRespostas,
         }),
       });
@@ -196,39 +199,24 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
         @keyframes bg4 { 0%,100%{transform:translateY(0px)}  50%{transform:translateY(-10px)} }
       `}</style>
 
-      {/* Background teeth */}
+      {/* Background circles */}
       {([
-        { left:"-7%",  top:"-4%",  size:220, op:0.038, rot:-22, anim:"bg1", dur:"5.2s",  del:"0s"   },
-        { left:"76%",  top:"-3%",  size:150, op:0.028, rot: 16, anim:"bg2", dur:"4.5s",  del:"1.4s" },
-        { left:"80%",  top:"55%",  size:190, op:0.042, rot: 10, anim:"bg3", dur:"6.1s",  del:"0.6s" },
-        { left:"-5%",  top:"62%",  size:130, op:0.030, rot:-14, anim:"bg4", dur:"4.8s",  del:"2.1s" },
-        { left:"88%",  top:"30%",  size: 95, op:0.020, rot: 32, anim:"bg1", dur:"3.9s",  del:"1.8s" },
-        { left:"24%",  top:"86%",  size:140, op:0.025, rot: -6, anim:"bg2", dur:"5.6s",  del:"0.3s" },
-        { left:"52%",  top:"-6%",  size:100, op:0.018, rot: 20, anim:"bg3", dur:"4.2s",  del:"3.0s" },
+        { left:"-10%", top:"-8%",  size:300, op:0.04, anim:"bg1", dur:"6s",  del:"0s"   },
+        { left:"75%",  top:"-5%",  size:200, op:0.03, anim:"bg2", dur:"5s",  del:"1s"   },
+        { left:"80%",  top:"60%",  size:250, op:0.03, anim:"bg3", dur:"7s",  del:"0.5s" },
+        { left:"-5%",  top:"65%",  size:180, op:0.025,anim:"bg4", dur:"5.5s",del:"2s"   },
       ] as const).map((t, i) => (
-        <div key={i} style={{ position: "absolute", left: t.left, top: t.top, transform: `rotate(${t.rot}deg)`, pointerEvents: "none", zIndex: 0 }}>
-          <div style={{ animation: `${t.anim} ${t.dur} ease-in-out ${t.del} infinite`, opacity: t.op }}>
-            <svg width={t.size} height={Math.round(t.size * 1.24)} viewBox="0 0 50 62" fill="none">
-              <path d="M25 4C17 4 9 9 7 19C5 27 4 38 6 49C8 57 13 61 17 59C21 57 24 52 25 52C26 52 29 57 33 59C37 61 42 57 44 49C46 38 45 27 43 19C41 9 33 4 25 4Z" stroke="#00CFFF" strokeWidth="1.5" fill="rgba(0,207,255,0.12)" strokeLinejoin="round"/>
-              <line x1="17" y1="52" x2="14" y2="62" stroke="#00CFFF" strokeWidth="1.2" strokeLinecap="round"/>
-              <line x1="25" y1="52" x2="25" y2="62" stroke="#00CFFF" strokeWidth="1.2" strokeLinecap="round"/>
-              <line x1="33" y1="52" x2="36" y2="62" stroke="#00CFFF" strokeWidth="1.2" strokeLinecap="round"/>
-            </svg>
-          </div>
-        </div>
+        <div key={i} style={{ position: "absolute", left: t.left, top: t.top, pointerEvents: "none", zIndex: 0, borderRadius: "50%", width: t.size, height: t.size, background: `radial-gradient(circle, rgba(0,207,255,${t.op}) 0%, transparent 70%)`, animation: `${t.anim} ${t.dur} ease-in-out ${t.del} infinite` }} />
       ))}
 
       <div style={{ width: "100%", maxWidth: "500px", position: "relative", zIndex: 1 }}>
 
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
-          <div style={{ animation: "tf 3s ease-in-out infinite", display: "inline-block", marginBottom: "6px" }}>
-            <svg width="34" height="42" viewBox="0 0 50 62" fill="none">
-              <path d="M25 4C17 4 9 9 7 19C5 27 4 38 6 49C8 57 13 61 17 59C21 57 24 52 25 52C26 52 29 57 33 59C37 61 42 57 44 49C46 38 45 27 43 19C41 9 33 4 25 4Z" stroke={ACCENT} strokeWidth="2" fill="rgba(0,207,255,0.1)" strokeLinejoin="round"/>
-              <line x1="17" y1="52" x2="14" y2="62" stroke={ACCENT} strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="25" y1="52" x2="25" y2="62" stroke={ACCENT} strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="33" y1="52" x2="36" y2="62" stroke={ACCENT} strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+          <div style={{ animation: "tf 3s ease-in-out infinite", display: "inline-block", marginBottom: "10px" }}>
+            <div style={{ width: "48px", height: "48px", background: "rgba(0,207,255,0.1)", border: "1px solid rgba(0,207,255,0.25)", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+              <Calendar size={24} color={ACCENT} />
+            </div>
           </div>
           <p style={{ fontSize: "11px", fontWeight: "600", color: ACCENT, letterSpacing: "0.14em", textTransform: "uppercase" }}>{clinica}</p>
           {step !== "tipo" && (
@@ -269,28 +257,56 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
             <h2 style={{ fontSize: "19px", fontWeight: "600", color: "#fff", marginBottom: "6px" }}>
               {tipo === "avaliacao" ? "O que está sentindo?" : "Qual procedimento?"}
             </h2>
-            <p style={{ fontSize: "13px", color: "#9A9288", marginBottom: "20px" }}>Selecione a opção que melhor descreve.</p>
+            <p style={{ fontSize: "13px", color: "#9A9288", marginBottom: "20px" }}>Selecione uma ou mais opções.</p>
             {loadingProc ? (
               <p style={{ color: "#777068", textAlign: "center", padding: "24px 0" }}>Carregando...</p>
             ) : procFiltrados.length === 0 ? (
               <p style={{ color: "#777068", textAlign: "center", padding: "24px 0" }}>Nenhuma opção cadastrada ainda.</p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
                 {procFiltrados.map((p) => {
-                  const sel = procedimentoSel?.id === p.id;
+                  const sel = procedimentosSel.some(s => s.id === p.id);
                   return (
-                    <button key={p.id} onClick={() => setProcedimentoSel(p)}
-                      style={{ padding: "13px 16px", background: sel ? "rgba(0,207,255,0.1)" : "#111", border: `1px solid ${sel ? "rgba(0,207,255,0.4)" : BORDER}`, borderRadius: "10px", cursor: "pointer", textAlign: "left" }}>
-                      <p style={{ fontSize: "14px", fontWeight: sel ? "600" : "400", color: sel ? ACCENT : "#ccc" }}>{p.nome}</p>
-                      {p.descricao && <p style={{ fontSize: "11px", color: "#777068", marginTop: "2px" }}>{p.descricao}</p>}
+                    <button key={p.id} onClick={() => {
+                      setProcedimentosSel(sel
+                        ? procedimentosSel.filter(s => s.id !== p.id)
+                        : [...procedimentosSel, p]);
+                    }}
+                      style={{ padding: "13px 16px", background: sel ? "rgba(0,207,255,0.1)" : "#111", border: `1px solid ${sel ? "rgba(0,207,255,0.4)" : BORDER}`, borderRadius: "10px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "18px", height: "18px", borderRadius: "5px", border: `2px solid ${sel ? ACCENT : "#444"}`, background: sel ? ACCENT : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {sel && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: "14px", fontWeight: sel ? "600" : "400", color: sel ? ACCENT : "#ccc" }}>{p.nome}</p>
+                        {p.descricao && <p style={{ fontSize: "11px", color: "#777068", marginTop: "2px" }}>{p.descricao}</p>}
+                      </div>
                     </button>
                   );
                 })}
+                {/* Opção Outro */}
+                <div>
+                  <button onClick={() => setOutroTexto(outroTexto === "__outro__" ? "" : "__outro__")}
+                    style={{ width: "100%", padding: "13px 16px", background: outroTexto ? "rgba(0,207,255,0.1)" : "#111", border: `1px solid ${outroTexto ? "rgba(0,207,255,0.4)" : BORDER}`, borderRadius: "10px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "18px", height: "18px", borderRadius: "5px", border: `2px solid ${outroTexto ? ACCENT : "#444"}`, background: outroTexto ? ACCENT : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {outroTexto && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <p style={{ fontSize: "14px", color: outroTexto ? ACCENT : "#ccc", fontWeight: outroTexto ? "600" : "400" }}>Outro</p>
+                  </button>
+                  {outroTexto && (
+                    <input
+                      autoFocus
+                      value={outroTexto === "__outro__" ? "" : outroTexto}
+                      onChange={(e) => setOutroTexto(e.target.value || "__outro__")}
+                      placeholder="Descreva o que está sentindo..."
+                      style={{ marginTop: "6px", width: "100%", padding: "12px 14px", background: "#111", border: `1px solid rgba(0,207,255,0.3)`, borderRadius: "8px", color: "#fff", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                    />
+                  )}
+                </div>
               </div>
             )}
             <div style={{ display: "flex", gap: "8px" }}>
               <BtnSec onClick={back}><ChevronLeft size={15} /> Voltar</BtnSec>
-              <Btn disabled={!procedimentoSel} onClick={() => go("profissional")}>Próximo <ChevronRight size={15} /></Btn>
+              <Btn disabled={procedimentosSel.length === 0 && (!outroTexto || outroTexto === "__outro__")} onClick={() => go("profissional")}>Próximo <ChevronRight size={15} /></Btn>
             </div>
           </div>
         )}
@@ -541,7 +557,7 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
               {(
                 [
                   ["Tipo", tipo === "avaliacao" ? "Avaliação" : "Retorno"],
-                  ["Procedimento", procedimentoSel?.nome ?? "—"],
+                  ["O que está sentindo", [...procedimentosSel.map(p => p.nome), ...(outroTexto && outroTexto !== "__outro__" ? [outroTexto] : [])].join(", ") || "—"],
                   ["Profissional", profissionalSel?.nome ?? "—"],
                   ["Data", formatarData(dataSel)],
                   ["Horário", horaSel],
