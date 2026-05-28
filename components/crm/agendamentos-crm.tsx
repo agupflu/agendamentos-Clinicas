@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Calendar, Clock, User, Phone, ChevronDown, RefreshCw, ExternalLink, Stethoscope, Plus, X, Link2, Check } from "lucide-react";
 import Link from "next/link";
 import type { CsAgendamento, CsAgendamentoStatus } from "@/types";
@@ -310,7 +310,19 @@ function AgCard({ ag, onStatus, loading }: { ag: CsAgendamento; onStatus: (id: s
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const cor = STATUS_COLORS[ag.status] ?? "#777";
+
+  useEffect(() => {
+    if (!menu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menu]);
 
   function copiarLink() {
     const url = `${window.location.origin}/agendar/reagendar/${ag.id}`;
@@ -347,17 +359,19 @@ function AgCard({ ag, onStatus, loading }: { ag: CsAgendamento; onStatus: (id: s
             {ag.paciente?.telefone && <span style={{ fontSize: "12px", color: "#9A9288", display: "flex", alignItems: "center", gap: "4px" }}><Phone size={11} />{ag.paciente.telefone}</span>}
           </div>
         </div>
-        <div style={{ position: "relative" }}>
+        <div ref={menuRef} style={{ position: "relative" }}>
           <button disabled={loading} onClick={(e) => { e.stopPropagation(); setMenu(!menu); }}
-            style={{ padding: "6px 10px", background: "rgba(255,255,255,0.04)", border: `1px solid ${BORDER}`, borderRadius: "6px", color: "#9A9288", cursor: "pointer", fontSize: "12px", display: "flex", alignItems: "center", gap: "4px" }}>
+            style={{ padding: "6px 10px", background: menu ? "rgba(0,207,255,0.08)" : "rgba(255,255,255,0.04)", border: `1px solid ${menu ? "rgba(0,207,255,0.3)" : BORDER}`, borderRadius: "6px", color: menu ? ACCENT : "#9A9288", cursor: "pointer", fontSize: "12px", display: "flex", alignItems: "center", gap: "4px" }}>
             {loading ? "..." : <><User size={11} /> Status <ChevronDown size={11} /></>}
           </button>
           {menu && (
-            <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#1a1a1a", border: `1px solid ${BORDER}`, borderRadius: "8px", zIndex: 50, minWidth: "150px", overflow: "hidden" }} onMouseLeave={() => setMenu(false)}>
+            <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#1a1a1a", border: `1px solid ${BORDER}`, borderRadius: "8px", zIndex: 50, minWidth: "160px", overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
               {(["pendente", "confirmado", "concluido", "cancelado", "no_show"] as CsAgendamentoStatus[]).map((s) => (
                 <button key={s} onClick={(e) => { e.stopPropagation(); onStatus(ag.id, s); setMenu(false); }}
-                  style={{ display: "block", width: "100%", padding: "9px 14px", background: ag.status === s ? `${STATUS_COLORS[s]}15` : "transparent", border: "none", color: ag.status === s ? STATUS_COLORS[s] : "#ccc", fontSize: "13px", textAlign: "left", cursor: "pointer" }}>
+                  style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "10px 14px", background: ag.status === s ? `${STATUS_COLORS[s]}15` : "transparent", border: "none", color: ag.status === s ? STATUS_COLORS[s] : "#ccc", fontSize: "13px", textAlign: "left", cursor: "pointer" }}>
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: STATUS_COLORS[s], flexShrink: 0 }} />
                   {STATUS_LABELS[s]}
+                  {ag.status === s && <span style={{ marginLeft: "auto", fontSize: "10px", color: STATUS_COLORS[s] }}>✓</span>}
                 </button>
               ))}
             </div>
