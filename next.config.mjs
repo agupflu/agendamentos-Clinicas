@@ -1,14 +1,3 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "Content-Type", value: "text/html; charset=UTF-8" },
-        ],
-      },
-    ];
-  },
-};
+const nextConfig = {};
 export default nextConfig;
