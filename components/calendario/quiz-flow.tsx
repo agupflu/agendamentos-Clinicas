@@ -315,7 +315,7 @@ export default function QuizFlow({ config }: { config: CsConfig | null }) {
         {step === "profissional" && (
           <div>
             <h2 style={{ fontSize: "19px", fontWeight: "600", color: "#fff", marginBottom: "4px" }}>Escolha o profissional</h2>
-            <p style={{ fontSize: "13px", color: "#9A9288", marginBottom: "20px" }}>{procedimentoSel?.nome}</p>
+            <p style={{ fontSize: "13px", color: "#9A9288", marginBottom: "20px" }}>{procedimentosSel.map(p => p.nome).join(", ") || "—"}</p>
             {loadingProf ? (
               <p style={{ color: "#777068", textAlign: "center", padding: "24px 0" }}>Carregando...</p>
             ) : profissionais.length === 0 ? (
