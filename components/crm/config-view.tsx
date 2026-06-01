@@ -132,18 +132,27 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
   }
 
   async function verificarStatus() {
+    if (!waUrl || !waToken) { setWaStatus({ connected: false, qrcode: null, status: "error" }); return; }
     setWaCarregandoStatus(true);
     try {
-      const r = await fetch("/api/whatsapp/status");
-      if (r.ok) setWaStatus(await r.json());
+      const params = new URLSearchParams({ url: waUrl, token: waToken });
+      const r = await fetch(`/api/whatsapp/status?${params}`);
+      const d = await r.json();
+      setWaStatus(d);
     } finally { setWaCarregandoStatus(false); }
   }
 
   async function conectarWhatsapp() {
+    if (!waUrl || !waToken) return;
     setWaConectando(true);
     try {
-      const r = await fetch("/api/whatsapp/status", { method: "POST" });
-      if (r.ok) setWaStatus(await r.json());
+      const r = await fetch("/api/whatsapp/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: waUrl, token: waToken }),
+      });
+      const d = await r.json();
+      setWaStatus(d);
     } finally { setWaConectando(false); }
   }
 
@@ -296,6 +305,11 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
                 )}
               </div>
             </div>
+
+            {/* Erro */}
+            {"error" in (waStatus ?? {}) && (
+              <p style={{ fontSize: "12px", color: "#EF4444", marginTop: "8px" }}>{String((waStatus as {error?: string}).error)}</p>
+            )}
 
             {/* QR Code */}
             {waStatus?.qrcode && !waStatus.connected && (
