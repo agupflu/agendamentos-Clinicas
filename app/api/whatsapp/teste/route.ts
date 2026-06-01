@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 import { enviarWhatsApp } from "@/lib/webhook";
 
 export async function POST(req: Request) {
-  const { url, token, instance, telefone } = await req.json();
+  const { url, token, telefone } = await req.json();
 
-  if (!url || !token || !instance || !telefone) {
-    return NextResponse.json({ error: "Preencha todos os campos." }, { status: 400 });
+  if (!url || !token || !telefone) {
+    return NextResponse.json({ error: "Preencha URL, Token e número de telefone." }, { status: 400 });
   }
 
   const ok = await enviarWhatsApp(telefone, "✅ Teste de WhatsApp do sistema de agendamento. Integração funcionando!", {
     whatsapp_url: url,
     whatsapp_token: token,
-    whatsapp_instance: instance ?? "",
+    whatsapp_instance: "",
     whatsapp_ativo: true,
     whatsapp_notif_paciente: true,
     whatsapp_notif_clinica: true,

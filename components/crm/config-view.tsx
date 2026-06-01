@@ -157,13 +157,13 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
   }
 
   async function testarWhatsapp() {
-    if (!waUrl || !waToken || !waInstance || !waTeste) return;
+    if (!waUrl || !waToken || !waTeste) return;
     setWaTestando(true);
     setWaTesteMsg("");
     try {
       const r = await fetch("/api/whatsapp/teste", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: waUrl, token: waToken, instance: waInstance, telefone: waTeste }),
+        body: JSON.stringify({ url: waUrl, token: waToken, telefone: waTeste }),
       });
       const d = await r.json();
       setWaTesteMsg(r.ok ? "✅ Mensagem enviada com sucesso!" : `❌ ${d.error}`);
@@ -365,7 +365,7 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
             <div style={{ display: "flex", gap: "8px" }}>
               <input value={waTeste} onChange={(e) => setWaTeste(e.target.value)} placeholder="5511999999999 (com DDI)"
                 style={{ flex: 1, padding: "10px 14px", background: "#0d0d0d", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", outline: "none" }} />
-              <button onClick={testarWhatsapp} disabled={waTestando || !waUrl || !waToken || !waInstance || !waTeste}
+              <button onClick={testarWhatsapp} disabled={waTestando || !waUrl || !waToken || !waTeste}
                 style={{ padding: "10px 16px", background: waTestando ? "#1a1a1a" : "rgba(0,207,255,0.1)", border: `1px solid ${waTestando ? BORDER : "rgba(0,207,255,0.3)"}`, borderRadius: "8px", color: waTestando ? "#555" : ACCENT, cursor: "pointer", fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap" }}>
                 <Send size={13} /> {waTestando ? "Enviando..." : "Testar"}
               </button>
