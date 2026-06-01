@@ -51,6 +51,9 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
   const [waTeste, setWaTeste] = useState("");
   const [waTestando, setWaTestando] = useState(false);
   const [waTesteMsg, setWaTesteMsg] = useState("");
+  const [waStatus, setWaStatus] = useState<{ connected: boolean; qrcode: string | null; status?: string; numero?: string } | null>(null);
+  const [waCarregandoStatus, setWaCarregandoStatus] = useState(false);
+  const [waConectando, setWaConectando] = useState(false);
   const [eventos, setEventos] = useState<any[]>([]);
   const [loadingEventos, setLoadingEventos] = useState(false);
   const [reprocessando, setReprocessando] = useState<string | null>(null);
@@ -126,6 +129,22 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
       });
       ok();
     } finally { setSaving(false); }
+  }
+
+  async function verificarStatus() {
+    setWaCarregandoStatus(true);
+    try {
+      const r = await fetch("/api/whatsapp/status");
+      if (r.ok) setWaStatus(await r.json());
+    } finally { setWaCarregandoStatus(false); }
+  }
+
+  async function conectarWhatsapp() {
+    setWaConectando(true);
+    try {
+      const r = await fetch("/api/whatsapp/status", { method: "POST" });
+      if (r.ok) setWaStatus(await r.json());
+    } finally { setWaConectando(false); }
   }
 
   async function testarWhatsapp() {
@@ -254,22 +273,47 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
 
       {tab === "whatsapp" && (
         <div style={{ maxWidth: "520px", display: "flex", flexDirection: "column", gap: "14px" }}>
-          <div style={{ background: "rgba(0,207,255,0.04)", border: `1px solid rgba(0,207,255,0.15)`, borderRadius: "10px", padding: "16px" }}>
-            <p style={{ fontSize: "13px", color: ACCENT, fontWeight: "600", marginBottom: "6px" }}>UazAPI — WhatsApp automático</p>
-            <p style={{ fontSize: "13px", color: "#9A9288", lineHeight: 1.6 }}>
-              Configure abaixo para enviar mensagens automáticas ao paciente e à clínica quando um agendamento for criado.
-            </p>
+
+          {/* Status de conexão */}
+          <div style={{ padding: "16px", background: "#111", border: `1px solid ${BORDER}`, borderRadius: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: waStatus ? "14px" : "0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: waStatus?.connected ? "#10B981" : "#EF4444", flexShrink: 0 }} />
+                <span style={{ fontSize: "13px", color: waStatus?.connected ? "#10B981" : "#9A9288", fontWeight: "500" }}>
+                  {waStatus === null ? "Status desconhecido" : waStatus.connected ? `Conectado${waStatus.numero ? ` — ${waStatus.numero}` : ""}` : "Desconectado"}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <button onClick={verificarStatus} disabled={waCarregandoStatus}
+                  style={{ padding: "5px 12px", background: "transparent", border: `1px solid ${BORDER}`, borderRadius: "6px", color: "#9A9288", cursor: "pointer", fontSize: "12px", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <RefreshCw size={11} style={{ animation: waCarregandoStatus ? "spin 1s linear infinite" : "none" }} /> Verificar
+                </button>
+                {!waStatus?.connected && (
+                  <button onClick={conectarWhatsapp} disabled={waConectando || !waToken}
+                    style={{ padding: "5px 12px", background: "rgba(0,207,255,0.1)", border: `1px solid rgba(0,207,255,0.3)`, borderRadius: "6px", color: ACCENT, cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                    {waConectando ? "Conectando..." : "Conectar"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* QR Code */}
+            {waStatus?.qrcode && !waStatus.connected && (
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "12px", color: "#9A9288", marginBottom: "12px" }}>Escaneie com o WhatsApp para conectar</p>
+                <img src={waStatus.qrcode} alt="QR Code WhatsApp" style={{ width: "200px", height: "200px", borderRadius: "8px", background: "#fff", padding: "8px" }} />
+                <p style={{ fontSize: "11px", color: "#555", marginTop: "8px" }}>Após escanear, clique em Verificar</p>
+              </div>
+            )}
           </div>
 
           <Field label="URL da API">
             <Input value={waUrl} onChange={setWaUrl} placeholder="https://free.uazapi.com" />
           </Field>
-          <Field label="Token">
-            <Input value={waToken} onChange={setWaToken} placeholder="Seu token da UazAPI" />
+          <Field label="Token (UUID da instância UazAPI)">
+            <Input value={waToken} onChange={setWaToken} placeholder="Ex: 4643feee-780e-4e89-8e48-d4d71bf2fbdd" />
           </Field>
-          <Field label="ID da instância">
-            <Input value={waInstance} onChange={setWaInstance} placeholder="Ex: 4643feee-780e-4e89-8e48-d4d71bf2fbdd" />
-          </Field>
+          <p style={{ fontSize: "11px", color: "#555", marginTop: "-6px" }}>O token é o UUID que aparece no painel da UazAPI — não o API Key.</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "14px", background: "#111", border: `1px solid ${BORDER}`, borderRadius: "10px" }}>
             <p style={{ fontSize: "12px", fontWeight: "600", color: "#777068", textTransform: "uppercase", letterSpacing: "0.08em" }}>Notificações</p>

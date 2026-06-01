@@ -23,12 +23,12 @@ export async function enviarWhatsApp(
   if (!numero || numero.length < 8) return false;
 
   try {
-    const url = `${config.whatsapp_url.replace(/\/$/, "")}/message/sendText/${config.whatsapp_instance}`;
+    const url = `${config.whatsapp_url.replace(/\/$/, "")}/send/text`;
     const r = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": config.whatsapp_token,
+        "token": config.whatsapp_token,
       },
       body: JSON.stringify({ number: numero, text: mensagem }),
       signal: AbortSignal.timeout(8000),

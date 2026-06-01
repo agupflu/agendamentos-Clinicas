@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const ok = await enviarWhatsApp(telefone, "✅ Teste de WhatsApp do sistema de agendamento. Integração funcionando!", {
     whatsapp_url: url,
     whatsapp_token: token,
-    whatsapp_instance: instance,
+    whatsapp_instance: instance ?? "",
     whatsapp_ativo: true,
     whatsapp_notif_paciente: true,
     whatsapp_notif_clinica: true,
