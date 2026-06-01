@@ -12,6 +12,13 @@ export interface CsConfig {
   webhook_url: string | null;
   webhook_ativo: boolean;
   whatsapp_template: string | null;
+  whatsapp_url: string | null;
+  whatsapp_token: string | null;
+  whatsapp_instance: string | null;
+  whatsapp_ativo: boolean;
+  whatsapp_notif_paciente: boolean;
+  whatsapp_notif_clinica: boolean;
+  whatsapp_telefone_clinica: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Plus, Trash2, Building2, Zap, Clock, Link2, RefreshCw, RotateCcw } from "lucide-react";
+import { Save, Plus, Trash2, Building2, Zap, Clock, Link2, RefreshCw, RotateCcw, MessageCircle, Send } from "lucide-react";
 import type { CsConfig, CsQuizPergunta, CsDisponibilidade } from "@/types";
 import { DIAS_COMPLETOS } from "@/lib/calendario";
 
 const ACCENT = "#00CFFF";
 const BORDER = "rgba(255,255,255,0.08)";
-type Tab = "clinica" | "quiz" | "horarios" | "webhook";
+type Tab = "clinica" | "quiz" | "horarios" | "whatsapp" | "webhook";
 
 interface Props { config: CsConfig | null; quiz: CsQuizPergunta[]; disponibilidade: CsDisponibilidade[] }
 
@@ -39,6 +39,18 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
   const [webhookUrl, setWebhookUrl] = useState(config?.webhook_url ?? "");
   const [webhookAtivo, setWebhookAtivo] = useState(config?.webhook_ativo ?? false);
   const [whatsappTemplate, setWhatsappTemplate] = useState(config?.whatsapp_template ?? "");
+
+  // WhatsApp
+  const [waUrl, setWaUrl] = useState(config?.whatsapp_url ?? "");
+  const [waToken, setWaToken] = useState(config?.whatsapp_token ?? "");
+  const [waInstance, setWaInstance] = useState(config?.whatsapp_instance ?? "");
+  const [waAtivo, setWaAtivo] = useState(config?.whatsapp_ativo ?? false);
+  const [waNotifPaciente, setWaNotifPaciente] = useState(config?.whatsapp_notif_paciente ?? true);
+  const [waNotifClinica, setWaNotifClinica] = useState(config?.whatsapp_notif_clinica ?? true);
+  const [waTelClinica, setWaTelClinica] = useState(config?.whatsapp_telefone_clinica ?? "");
+  const [waTeste, setWaTeste] = useState("");
+  const [waTestando, setWaTestando] = useState(false);
+  const [waTesteMsg, setWaTesteMsg] = useState("");
   const [eventos, setEventos] = useState<any[]>([]);
   const [loadingEventos, setLoadingEventos] = useState(false);
   const [reprocessando, setReprocessando] = useState<string | null>(null);
@@ -96,10 +108,46 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
     finally { setSaving(false); }
   }
 
+  async function saveWhatsapp() {
+    setSaving(true);
+    try {
+      await fetch("/api/config", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          whatsapp_url: waUrl || null,
+          whatsapp_token: waToken || null,
+          whatsapp_instance: waInstance || null,
+          whatsapp_ativo: waAtivo,
+          whatsapp_notif_paciente: waNotifPaciente,
+          whatsapp_notif_clinica: waNotifClinica,
+          whatsapp_telefone_clinica: waTelClinica || null,
+          whatsapp_template: whatsappTemplate || null,
+        }),
+      });
+      ok();
+    } finally { setSaving(false); }
+  }
+
+  async function testarWhatsapp() {
+    if (!waUrl || !waToken || !waInstance || !waTeste) return;
+    setWaTestando(true);
+    setWaTesteMsg("");
+    try {
+      const r = await fetch("/api/whatsapp/teste", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: waUrl, token: waToken, instance: waInstance, telefone: waTeste }),
+      });
+      const d = await r.json();
+      setWaTesteMsg(r.ok ? "✅ Mensagem enviada com sucesso!" : `❌ ${d.error}`);
+    } catch { setWaTesteMsg("❌ Erro de conexão."); }
+    finally { setWaTestando(false); }
+  }
+
   const TABS = [
     { key: "clinica" as Tab, label: "Clínica", icon: <Building2 size={13} /> },
     { key: "quiz" as Tab, label: "Quiz", icon: <Zap size={13} /> },
     { key: "horarios" as Tab, label: "Horários", icon: <Clock size={13} /> },
+    { key: "whatsapp" as Tab, label: "WhatsApp", icon: <MessageCircle size={13} /> },
     { key: "webhook" as Tab, label: "Webhook", icon: <Link2 size={13} /> },
   ];
 
@@ -201,6 +249,73 @@ export default function ConfigView({ config, quiz: initQuiz, disponibilidade: in
             );
           })}
           <SaveBar saving={saving} msg={savedMsg} onSave={saveDispon} />
+        </div>
+      )}
+
+      {tab === "whatsapp" && (
+        <div style={{ maxWidth: "520px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div style={{ background: "rgba(0,207,255,0.04)", border: `1px solid rgba(0,207,255,0.15)`, borderRadius: "10px", padding: "16px" }}>
+            <p style={{ fontSize: "13px", color: ACCENT, fontWeight: "600", marginBottom: "6px" }}>UazAPI — WhatsApp automático</p>
+            <p style={{ fontSize: "13px", color: "#9A9288", lineHeight: 1.6 }}>
+              Configure abaixo para enviar mensagens automáticas ao paciente e à clínica quando um agendamento for criado.
+            </p>
+          </div>
+
+          <Field label="URL da API">
+            <Input value={waUrl} onChange={setWaUrl} placeholder="https://free.uazapi.com" />
+          </Field>
+          <Field label="Token">
+            <Input value={waToken} onChange={setWaToken} placeholder="Seu token da UazAPI" />
+          </Field>
+          <Field label="ID da instância">
+            <Input value={waInstance} onChange={setWaInstance} placeholder="Ex: 4643feee-780e-4e89-8e48-d4d71bf2fbdd" />
+          </Field>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "14px", background: "#111", border: `1px solid ${BORDER}`, borderRadius: "10px" }}>
+            <p style={{ fontSize: "12px", fontWeight: "600", color: "#777068", textTransform: "uppercase", letterSpacing: "0.08em" }}>Notificações</p>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: waAtivo ? ACCENT : "#9A9288" }}>
+              <input type="checkbox" checked={waAtivo} onChange={(e) => setWaAtivo(e.target.checked)} style={{ accentColor: ACCENT }} />
+              Ativar envio automático
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: waNotifPaciente ? "#fff" : "#555" }}>
+              <input type="checkbox" checked={waNotifPaciente} onChange={(e) => setWaNotifPaciente(e.target.checked)} style={{ accentColor: ACCENT }} />
+              Notificar paciente ao agendar
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: waNotifClinica ? "#fff" : "#555" }}>
+              <input type="checkbox" checked={waNotifClinica} onChange={(e) => setWaNotifClinica(e.target.checked)} style={{ accentColor: ACCENT }} />
+              Notificar clínica ao agendar
+            </label>
+            {waNotifClinica && (
+              <Field label="WhatsApp da clínica (com DDI, ex: 5511999999999)">
+                <Input value={waTelClinica} onChange={setWaTelClinica} placeholder="5511999999999" />
+              </Field>
+            )}
+          </div>
+
+          <Field label="Mensagem para o paciente (opcional — deixe em branco para usar o padrão)">
+            <textarea value={whatsappTemplate} onChange={(e) => setWhatsappTemplate(e.target.value)}
+              rows={4} placeholder={"Olá {{nome}}! Seu agendamento está confirmado para {{data}} às {{hora}}. 🏥 {{clinica}}"}
+              style={{ width: "100%", padding: "10px 14px", background: "#111", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", resize: "vertical", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+            <p style={{ fontSize: "11px", color: "#555", marginTop: "4px" }}>Variáveis: {"{{nome}}"} {"{{data}}"} {"{{hora}}"} {"{{profissional}}"} {"{{procedimento}}"} {"{{clinica}}"} {"{{link}}"}</p>
+          </Field>
+
+          <SaveBar saving={saving} msg={savedMsg} onSave={saveWhatsapp} />
+
+          {/* Teste */}
+          <div style={{ marginTop: "8px", padding: "16px", background: "#111", border: `1px solid ${BORDER}`, borderRadius: "10px" }}>
+            <p style={{ fontSize: "12px", fontWeight: "600", color: "#777068", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Testar envio</p>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input value={waTeste} onChange={(e) => setWaTeste(e.target.value)} placeholder="5511999999999 (com DDI)"
+                style={{ flex: 1, padding: "10px 14px", background: "#0d0d0d", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#fff", fontSize: "13px", outline: "none" }} />
+              <button onClick={testarWhatsapp} disabled={waTestando || !waUrl || !waToken || !waInstance || !waTeste}
+                style={{ padding: "10px 16px", background: waTestando ? "#1a1a1a" : "rgba(0,207,255,0.1)", border: `1px solid ${waTestando ? BORDER : "rgba(0,207,255,0.3)"}`, borderRadius: "8px", color: waTestando ? "#555" : ACCENT, cursor: "pointer", fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap" }}>
+                <Send size={13} /> {waTestando ? "Enviando..." : "Testar"}
+              </button>
+            </div>
+            {waTesteMsg && (
+              <p style={{ fontSize: "13px", marginTop: "10px", color: waTesteMsg.startsWith("✅") ? "#10B981" : "#EF4444" }}>{waTesteMsg}</p>
+            )}
+          </div>
         </div>
       )}
 
