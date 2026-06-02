@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { User, Phone, Mail, Plus, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { User, Phone, Mail, Plus, RefreshCw, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import type { CsPaciente } from "@/types";
 import { formatarData, STATUS_LABELS, STATUS_COLORS } from "@/lib/calendario";
 
@@ -88,6 +88,10 @@ export default function PacientesView({ initialData, initialTotal }: { initialDa
             style={{ padding: "10px 12px", background: "transparent", border: `1px solid ${BORDER}`, borderRadius: "8px", color: "#9A9288", cursor: "pointer", display: "flex", alignItems: "center" }}>
             <RefreshCw size={14} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
           </button>
+          <a href="/api/pacientes/exportar" download title="Exportar contatos"
+            style={{ padding: "10px 12px", background: "rgba(0,207,255,0.08)", border: `1px solid rgba(0,207,255,0.2)`, borderRadius: "8px", color: ACCENT, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: "600", textDecoration: "none" }}>
+            <Download size={14} /> Exportar
+          </a>
         </div>
         <p style={{ fontSize: "11px", color: "#777068" }}>{total} paciente{total !== 1 ? "s" : ""}</p>
         {loading && <p style={{ fontSize: "12px", color: "#777068", textAlign: "center", padding: "12px 0" }}>Carregando...</p>}
